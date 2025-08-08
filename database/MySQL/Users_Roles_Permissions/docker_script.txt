@@ -1,0 +1,9 @@
+To create a local mysql instance and map it to localhost:3307 , use docker commands :
+
+To create the container and volume (Once) - 
+
+docker run --name Users_Roles_Permissions -d -p 3307:3306 -e MYSQL_ROOT_PASSWORD=password -v Users_Roles_Permissions_Volume:/var/lib/mysql mysql:latest
+
+To start the created container(Every time) -
+
+docker start Users_Roles_Permissions
