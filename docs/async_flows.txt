@@ -1,0 +1,1 @@
+User created -> User service creates user -> emits event using rabbuitMQ -> Auth user add user metadata
