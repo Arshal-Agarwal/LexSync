@@ -1,0 +1,11 @@
+To run a postgre instance - 
+
+    docker run -d \
+    --name lexsync-auth-db \
+    -e POSTGRES_USER=lexsync \
+    -e POSTGRES_PASSWORD=lexsync \
+    -e POSTGRES_DB=auth_db \
+    -p 5433:5432 \
+    postgres:15
+
+    
