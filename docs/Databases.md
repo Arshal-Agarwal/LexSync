@@ -134,3 +134,67 @@
 | S3/GridFS      | 1 bucket     | File storage                               |
 
 ---
+
+# Audit Logs
+
+audit_logs
+- id
+- user_id
+- team_id        ← VERY IMPORTANT
+- org_id         ← optional (future multi-tenant)
+- action
+- resource_type
+- resource_id
+- timestamp
+
+# Auth
+
+Postgres
+
+users
+- id (uuid)
+- email (unique)
+- password_hash
+- is_verified
+- created_at
+- updated_at
+- revoked boolean default flase
+
+refresh_tokens
+
+- id
+- user_id
+- token_hash
+- expires_at
+- created_at
+
+Redis
+
+Refresh_token
+
+key: refresh:<token_hash>
+value: user_id
+TTL: expires_at
+
+Blacklist
+
+key: blacklist:<token_hash>
+value: true
+TTL: remaining_token_lifetime
+
+## Token payload
+
+{
+  "iss": "lexsync-auth",        // issuer (Auth Service)
+  "sub": "user_id",             // subject (unique user id)
+  "aud": "lexsync-api",         // audience (your services)
+
+  "iat": 1710000000,            // issued at (timestamp)
+  "exp": 1710000900,            // expiry (short-lived)
+
+  "jti": "uuid-token-id",       // unique token id (for blacklist)
+
+  "roles": ["lawyer"],          // RBAC roles
+  "team_id": "team_123",        // team context
+  "org_id": "org_456"           // future multi-tenant support
+}
