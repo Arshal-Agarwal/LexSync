@@ -1,0 +1,512 @@
+{
+  "info": {
+    "name": "LexSync — Auth Service",
+    "_postman_id": "lexsync-auth-service-v1",
+    "description": "Complete API collection for the LexSync auth-service. Run requests in order: Signup → Login → (protected routes) → Logout.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Verify the service is running."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Service is auth-service', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.status).to.eql('ok');",
+              "  pm.expect(body.service).to.eql('auth-service');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Signup",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"Password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/signup",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "signup"]
+        },
+        "description": "Register a new user. Returns userId on success."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.test('Returns userId', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('userId');",
+              "  pm.expect(body.message).to.eql('Account created');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Signup — Duplicate Email (409)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"Password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/signup",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "signup"]
+        },
+        "description": "Attempt to register with an already-registered email."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 409', () => pm.response.to.have.status(409));",
+              "pm.test('Error message present', () => {",
+              "  pm.expect(pm.response.json().error).to.eql('Email already registered');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Signup — Validation Error (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"short\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/signup",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "signup"]
+        },
+        "description": "Invalid email and short password should return 400 with Joi errors."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "pm.test('Error is an array', () => {",
+              "  pm.expect(pm.response.json().error).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"Password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Login and receive an access token in the body and a refreshToken HttpOnly cookie."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Returns accessToken and expiresAt', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('accessToken');",
+              "  pm.expect(body).to.have.property('expiresAt');",
+              "  pm.collectionVariables.set('accessToken', body.accessToken);",
+              "});",
+              "pm.test('refreshToken cookie is set', () => {",
+              "  pm.expect(pm.cookies.has('refreshToken')).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login — Wrong Password (401)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"WrongPassword\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Wrong password should return generic 401 (no user enumeration)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "pm.test('Generic error message', () => {",
+              "  pm.expect(pm.response.json().error).to.eql('Invalid credentials');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Refresh Token",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/auth/refresh",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "refresh"]
+        },
+        "description": "Uses the refreshToken cookie (set automatically by Postman after login) to rotate tokens. Updates the accessToken collection variable."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('New accessToken returned', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('accessToken');",
+              "  pm.collectionVariables.set('accessToken', body.accessToken);",
+              "});",
+              "pm.test('New refreshToken cookie set', () => {",
+              "  pm.expect(pm.cookies.has('refreshToken')).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Refresh Token — No Cookie (401)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/auth/refresh",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "refresh"]
+        },
+        "description": "Calling refresh without a cookie should return 401. Clear cookies in Postman before running."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "pm.test('No refresh token error', () => {",
+              "  pm.expect(pm.response.json().error).to.eql('No refresh token');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validate Session",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/session/validate",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "session", "validate"]
+        },
+        "description": "Confirm the current access token represents a valid, non-revoked session."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Session is valid', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.valid).to.be.true;",
+              "  pm.expect(body).to.have.property('userId');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validate Session — No Token (401)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/auth/session/validate",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "session", "validate"]
+        },
+        "description": "Missing Authorization header should return 401."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "pm.test('Missing token error', () => {",
+              "  pm.expect(pm.response.json().error).to.eql('Missing token');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Forgot Password",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testuser@example.com\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/forgot-password",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "forgot-password"]
+        },
+        "description": "Always returns 200 regardless of whether the email exists (prevents enumeration)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Generic message returned', () => {",
+              "  pm.expect(pm.response.json().message).to.include('If that email exists');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Forgot Password — Invalid Email (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"not-valid\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/forgot-password",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "forgot-password"]
+        },
+        "description": "Malformed email should fail Joi validation and return 400."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "pm.test('Validation error array', () => {",
+              "  pm.expect(pm.response.json().error).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reset Password",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"some-reset-token\",\n  \"password\": \"NewPassword123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/reset-password",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "reset-password"]
+        },
+        "description": "Stub endpoint — returns placeholder message. Full implementation pending."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Placeholder message', () => {",
+              "  pm.expect(pm.response.json().message).to.include('not yet implemented');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Revoke All Sessions",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/session/revoke",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "session", "revoke"]
+        },
+        "description": "Revokes all refresh tokens for the user and sets revoked=true in the DB."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('All sessions revoked message', () => {",
+              "  pm.expect(pm.response.json().message).to.eql('All sessions revoked');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/logout",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "logout"]
+        },
+        "description": "Invalidates the current session. Deletes the refresh token and blacklists the access token jti in Redis."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Logged out message', () => {",
+              "  pm.expect(pm.response.json().message).to.eql('Logged out');",
+              "});",
+              "pm.collectionVariables.set('accessToken', '');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logout — Blacklisted Token (401)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/session/validate",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "session", "validate"]
+        },
+        "description": "After logout, the same access token jti is blacklisted in Redis. This request should be rejected. Run immediately after Logout."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401 — token blacklisted', () => pm.response.to.have.status(401));",
+              "pm.test('Token revoked error', () => {",
+              "  pm.expect(pm.response.json().error).to.eql('Token revoked');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}
